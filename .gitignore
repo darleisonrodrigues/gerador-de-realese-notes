@@ -1,0 +1,51 @@
+# Arquivos e diretórios a serem ignorados
+
+# Ambiente virtual
+venv/
+env/
+.venv/
+
+# Arquivos de configuração sensíveis
+.env
+*.key
+
+# Cache do Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Arquivos temporários
+*.tmp
+*.temp
+temp/
+uploads/*.png
+uploads/*.jpg
+uploads/*.jpeg
+uploads/*.pdf
+
+# Vector store e dados RAG
+rag/vector_store/
+rag/*.pkl
+rag/*.index
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Streamlit
+.streamlit/
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
