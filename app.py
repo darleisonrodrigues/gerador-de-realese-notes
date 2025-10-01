@@ -131,6 +131,56 @@ def main():
     col_main, col_sidebar = st.columns([5, 1])
     
     with col_main:
+        # === ÁREA DE EDIÇÃO DE VERSÃO EXISTENTE ===
+        if 'editing_version' in st.session_state and 'editing_content' in st.session_state:
+            st.markdown("---")
+            st.markdown(f"### ✏️ Editando Versão: {st.session_state.editing_version}")
+            
+            # Campo de edição do markdown
+            edited_markdown = st.text_area(
+                "Conteúdo das Release Notes:",
+                value=st.session_state.editing_content,
+                height=300,
+                help="Edite o conteúdo das release notes diretamente"
+            )
+            
+            # Botões de ação
+            col_save, col_preview, col_cancel = st.columns([1, 1, 1])
+            
+            with col_save:
+                if st.button("💾 Salvar Alterações", use_container_width=True):
+                    try:
+                        # Salvar as alterações no banco
+                        crew = ReleaseNotesCrewAI()
+                        crew.db.update_version_content(st.session_state.editing_version, edited_markdown)
+                        
+                        st.success(f"Versão {st.session_state.editing_version} atualizada com sucesso!")
+                        
+                        # Limpar session state
+                        del st.session_state.editing_version
+                        del st.session_state.editing_content
+                        
+                        st.rerun()
+                        
+                    except Exception as e:
+                        st.error(f"Erro ao salvar: {str(e)}")
+            
+            with col_preview:
+                if st.button("👁️ Preview", use_container_width=True):
+                    # Mostrar preview do markdown editado
+                    with st.expander("Preview das Release Notes", expanded=True):
+                        st.markdown(edited_markdown)
+            
+            with col_cancel:
+                if st.button("❌ Cancelar", use_container_width=True):
+                    # Cancelar edição
+                    del st.session_state.editing_version
+                    del st.session_state.editing_content
+                    st.rerun()
+            
+            st.markdown("---")
+            st.markdown("---")
+        
         # Formulário principal
         
         # Primeira linha: Versão e Tipo
@@ -426,16 +476,29 @@ def main():
                             b64 = base64.b64encode(current_markdown.encode()).decode()
                             filename = f"release_notes_{version_name_db}_{datetime.now().strftime('%Y%m%d_%H%M')}.md"
                             
-                            # Mostrar versão e download na mesma linha
-                            download_link = f'<a href="data:text/markdown;base64,{b64}" download="{filename}" style="color: #0066cc; text-decoration: none; font-weight: 600;" onmouseover="this.style.textDecoration=\'underline\'" onmouseout="this.style.textDecoration=\'none\'">Download</a>'
+                            # Mostrar versão, botão de editar e download
+                            download_link = f'<a href="data:text/markdown;base64,{b64}" download="{filename}" style="color: #0066cc; text-decoration: none; font-size: 0.8rem;" onmouseover="this.style.textDecoration=\'underline\'" onmouseout="this.style.textDecoration=\'none\'">📥 Download</a>'
                             
-                            # Versão com destaque se é a atual sendo editada
-                            if 'version_name' in locals() and version_name and version_name.strip() == version_name_db:
-                                version_html = f'<div style="font-weight: 600; margin-bottom: 8px;">{version_name_db} {download_link}</div>'
-                            else:
-                                version_html = f'<div style="font-weight: 600; margin-bottom: 8px;">{version_name_db} {download_link}</div>'
+                            # Layout da versão com botões
+                            col_ver, col_edit, col_down = st.columns([2, 1, 1])
                             
-                            st.markdown(version_html, unsafe_allow_html=True)
+                            with col_ver:
+                                # Versão com destaque se é a atual sendo editada
+                                if 'version_name' in locals() and version_name and version_name.strip() == version_name_db:
+                                    st.markdown(f'<div style="font-weight: 600; margin-bottom: 8px; color: #0066cc;">{version_name_db}</div>', unsafe_allow_html=True)
+                                else:
+                                    st.markdown(f'<div style="font-weight: 600; margin-bottom: 8px;">{version_name_db}</div>', unsafe_allow_html=True)
+                            
+                            with col_edit:
+                                # Botão de editar
+                                if st.button("✏️", key=f"edit_{version_name_db}", help="Editar esta versão", use_container_width=True):
+                                    # Carregar o conteúdo para edição
+                                    st.session_state.editing_version = version_name_db
+                                    st.session_state.editing_content = current_markdown
+                                    st.rerun()
+                            
+                            with col_down:
+                                st.markdown(download_link, unsafe_allow_html=True)
                         else:
                             # Versão sem download (vazia)
                             if 'version_name' in locals() and version_name and version_name.strip() == version_name_db:

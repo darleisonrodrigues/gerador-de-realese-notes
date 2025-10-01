@@ -283,17 +283,54 @@ class CollaborativeReleaseNotesDB:
         """Retorna todas as versões existentes ordenadas por data de criação"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        
+
         cursor.execute("""
             SELECT id, version_name, created_at, is_active 
             FROM release_versions 
             ORDER BY created_at DESC
         """)
-        
+
         versions = cursor.fetchall()
         conn.close()
-        
+
         return versions
+    
+    def update_version_content(self, version_name, new_content):
+        """Atualiza o conteúdo de uma versão específica através das tasks"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            # Primeiro, vamos limpar todas as tasks da versão
+            cursor.execute("""
+                DELETE FROM tasks 
+                WHERE version_id = (SELECT id FROM release_versions WHERE version_name = ?)
+            """, (version_name,))
+            
+            # Agora, vamos criar uma única task especial com o conteúdo editado
+            cursor.execute("""
+                INSERT INTO tasks 
+                (version_id, jira_task_id, task_type, task_title, task_description, generated_content, evidence_image)
+                VALUES (
+                    (SELECT id FROM release_versions WHERE version_name = ?),
+                    'EDITED_CONTENT',
+                    'Edição Manual',
+                    'Conteúdo Editado Manualmente',
+                    'Conteúdo das release notes editado diretamente pelo usuário',
+                    ?,
+                    NULL
+                )
+            """, (version_name, new_content))
+            
+            conn.commit()
+            
+        except Exception as e:
+            conn.rollback()
+            raise e
+        finally:
+            conn.close()
+        
+        return True
 
 def get_collaborative_db():
     """Função helper para usar no Streamlit"""
