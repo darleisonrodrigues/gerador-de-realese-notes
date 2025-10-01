@@ -486,29 +486,28 @@ def main():
                             b64 = base64.b64encode(current_markdown.encode()).decode()
                             filename = f"release_notes_{version_name_db}_{datetime.now().strftime('%Y%m%d_%H%M')}.md"
                             
-                            # Mostrar versão, botão de editar e download
-                            download_link = f'<a href="data:text/markdown;base64,{b64}" download="{filename}" style="color: #0066cc; text-decoration: none; font-size: 0.8rem;" onmouseover="this.style.textDecoration=\'underline\'" onmouseout="this.style.textDecoration=\'none\'">📥 Download</a>'
+                            # Criar link de download
+                            download_link = f'<a href="data:text/markdown;base64,{b64}" download="{filename}" style="color: #0066cc; text-decoration: none; font-size: 0.9rem;" onmouseover="this.style.textDecoration=\'underline\'" onmouseout="this.style.textDecoration=\'none\'">Download</a>'
                             
-                            # Layout da versão com botões
-                            col_ver, col_edit, col_down = st.columns([2, 1, 1])
+                            # Nome da versão com destaque se é a atual sendo editada
+                            if 'version_name' in locals() and version_name and version_name.strip() == version_name_db:
+                                st.markdown(f'<div style="font-weight: 600; margin-bottom: 8px; color: #0066cc;">{version_name_db}</div>', unsafe_allow_html=True)
+                            else:
+                                st.markdown(f'<div style="font-weight: 600; margin-bottom: 8px;">{version_name_db}</div>', unsafe_allow_html=True)
                             
-                            with col_ver:
-                                # Versão com destaque se é a atual sendo editada
-                                if 'version_name' in locals() and version_name and version_name.strip() == version_name_db:
-                                    st.markdown(f'<div style="font-weight: 600; margin-bottom: 8px; color: #0066cc;">{version_name_db}</div>', unsafe_allow_html=True)
-                                else:
-                                    st.markdown(f'<div style="font-weight: 600; margin-bottom: 8px;">{version_name_db}</div>', unsafe_allow_html=True)
+                            # Layout horizontal: Download e Editar
+                            col_download, col_edit = st.columns([1, 1])
+                            
+                            with col_download:
+                                st.markdown(download_link, unsafe_allow_html=True)
                             
                             with col_edit:
                                 # Botão de editar
-                                if st.button("✏️", key=f"edit_{version_name_db}", help="Editar esta versão", use_container_width=True):
+                                if st.button("Editar", key=f"edit_{version_name_db}", help="Editar esta versão", use_container_width=True):
                                     # Carregar o conteúdo para edição
                                     st.session_state.editing_version = version_name_db
                                     st.session_state.editing_content = current_markdown
                                     st.rerun()
-                            
-                            with col_down:
-                                st.markdown(download_link, unsafe_allow_html=True)
                         else:
                             # Versão sem download (vazia)
                             if 'version_name' in locals() and version_name and version_name.strip() == version_name_db:
