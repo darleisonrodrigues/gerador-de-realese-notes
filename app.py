@@ -150,20 +150,27 @@ def main():
             with col_save:
                 if st.button("💾 Salvar Alterações", use_container_width=True):
                     try:
-                        # Salvar as alterações no banco
-                        crew = ReleaseNotesCrewAI()
-                        crew.db.update_version_content(st.session_state.editing_version, edited_markdown)
+                        with st.spinner("Salvando alterações..."):
+                            # Salvar as alterações no banco
+                            crew = ReleaseNotesCrewAI()
+                            crew.db.update_version_content(st.session_state.editing_version, edited_markdown)
                         
                         st.success(f"Versão {st.session_state.editing_version} atualizada com sucesso!")
                         
                         # Limpar session state
-                        del st.session_state.editing_version
-                        del st.session_state.editing_content
+                        if 'editing_version' in st.session_state:
+                            del st.session_state.editing_version
+                        if 'editing_content' in st.session_state:
+                            del st.session_state.editing_content
                         
+                        # Aguardar um pouco antes do rerun
+                        import time
+                        time.sleep(0.5)
                         st.rerun()
                         
                     except Exception as e:
                         st.error(f"Erro ao salvar: {str(e)}")
+                        st.info("Tente novamente ou cancele a edição")
             
             with col_preview:
                 if st.button("👁️ Preview", use_container_width=True):
@@ -174,8 +181,10 @@ def main():
             with col_cancel:
                 if st.button("❌ Cancelar", use_container_width=True):
                     # Cancelar edição
-                    del st.session_state.editing_version
-                    del st.session_state.editing_content
+                    if 'editing_version' in st.session_state:
+                        del st.session_state.editing_version
+                    if 'editing_content' in st.session_state:
+                        del st.session_state.editing_content
                     st.rerun()
             
             st.markdown("---")

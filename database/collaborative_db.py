@@ -296,41 +296,46 @@ class CollaborativeReleaseNotesDB:
         return versions
     
     def update_version_content(self, version_name, new_content):
-        """Atualiza o conteúdo de uma versão específica através das tasks"""
+        """Atualiza o conteúdo de uma versão específica"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
         try:
-            # Primeiro, vamos limpar todas as tasks da versão
-            cursor.execute("""
-                DELETE FROM tasks 
-                WHERE version_id = (SELECT id FROM release_versions WHERE version_name = ?)
-            """, (version_name,))
+            # Verificar se a versão existe
+            cursor.execute("SELECT id FROM release_versions WHERE version_name = ?", (version_name,))
+            version_result = cursor.fetchone()
             
-            # Agora, vamos criar uma única task especial com o conteúdo editado
+            if not version_result:
+                raise Exception(f"Versão {version_name} não encontrada")
+            
+            version_id = version_result[0]
+            
+            # Limpar todas as tasks da versão
+            cursor.execute("DELETE FROM tasks WHERE version_id = ?", (version_id,))
+            
+            # Criar task especial com conteúdo editado
             cursor.execute("""
                 INSERT INTO tasks 
                 (version_id, jira_task_id, task_type, task_title, task_description, generated_content, evidence_image)
-                VALUES (
-                    (SELECT id FROM release_versions WHERE version_name = ?),
-                    'EDITED_CONTENT',
-                    'Edição Manual',
-                    'Conteúdo Editado Manualmente',
-                    'Conteúdo das release notes editado diretamente pelo usuário',
-                    ?,
-                    NULL
-                )
-            """, (version_name, new_content))
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                version_id,
+                'EDITED_CONTENT',
+                'Edição Manual',
+                'Conteúdo Editado',
+                'Conteúdo editado manualmente',
+                new_content,
+                None
+            ))
             
             conn.commit()
+            return True
             
         except Exception as e:
             conn.rollback()
-            raise e
+            raise Exception(f"Erro ao atualizar versão: {str(e)}")
         finally:
             conn.close()
-        
-        return True
 
 def get_collaborative_db():
     """Função helper para usar no Streamlit"""
