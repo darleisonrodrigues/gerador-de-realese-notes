@@ -1,12 +1,20 @@
 import streamlit as st
 import os
-from PIL import Image
-from agents.crew_requests import ReleaseNotesCrewAI
 from datetime import datetime
-from dotenv import load_dotenv
+from agents.crew_requests import ReleaseNotesCrewAI
 
-# Carregar variáveis de ambiente
-load_dotenv()
+# Imports opcionais para evitar erros no deploy
+try:
+    from PIL import Image
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv não é essencial no Streamlit Cloud
 
 # Configuração da página
 st.set_page_config(
