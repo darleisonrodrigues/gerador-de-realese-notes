@@ -3,6 +3,8 @@ import os
 from datetime import datetime
 from agents.crew_requests import ReleaseNotesCrewAI
 
+# Deploy: 2025-10-01 - Interface melhorada
+
 # Imports opcionais para evitar erros no deploy
 try:
     from PIL import Image
