@@ -1,0 +1,1 @@
+# Não são necessários packages extras para SQLite no Streamlit Cloud
