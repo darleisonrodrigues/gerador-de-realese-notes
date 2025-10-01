@@ -126,7 +126,7 @@ Gere agora a release note seguindo exatamente este formato:"""
         }
         
         data = {
-            "model": "deepseek-r1-distill-llama-70b",
+            "model": "mixtral-8x7b-32768",
             "messages": [
                 {"role": "user", "content": prompt}
             ],
