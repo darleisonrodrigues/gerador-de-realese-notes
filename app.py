@@ -98,6 +98,44 @@ st.markdown("""
         color: #333333;
         margin-bottom: 0.5rem;
     }
+    .version-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+        padding: 8px;
+        border-radius: 6px;
+        border: 1px solid #e9ecef;
+        background-color: #f8f9fa;
+    }
+    .version-name {
+        font-weight: 600;
+        flex-grow: 1;
+        margin-right: 8px;
+    }
+    .version-buttons {
+        display: flex;
+        gap: 4px;
+    }
+    .version-btn {
+        padding: 4px 8px;
+        font-size: 0.75rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+        min-width: 60px;
+        text-align: center;
+    }
+    .edit-btn {
+        background-color: #ffc107;
+        color: #000;
+    }
+    .download-btn {
+        background-color: #28a745;
+        color: white;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -189,7 +227,7 @@ def main():
                     st.rerun()
             
             st.markdown("---")
-            st.markdown("---")
+            return  # Sair da função, não mostrar mais nada quando está editando
         
         # Formulário principal
         
@@ -486,37 +524,67 @@ def main():
                             b64 = base64.b64encode(current_markdown.encode()).decode()
                             filename = f"release_notes_{version_name_db}_{datetime.now().strftime('%Y%m%d_%H%M')}.md"
                             
-                            # Criar link de download
-                            download_link = f'<a href="data:text/markdown;base64,{b64}" download="{filename}" style="color: #0066cc; text-decoration: none; font-size: 0.9rem;" onmouseover="this.style.textDecoration=\'underline\'" onmouseout="this.style.textDecoration=\'none\'">Download</a>'
+                            # Layout horizontal da versão com botões
+                            version_color = "#0066cc" if 'version_name' in locals() and version_name and version_name.strip() == version_name_db else "#333"
                             
-                            # Nome da versão com destaque se é a atual sendo editada
-                            if 'version_name' in locals() and version_name and version_name.strip() == version_name_db:
-                                st.markdown(f'<div style="font-weight: 600; margin-bottom: 8px; color: #0066cc;">{version_name_db}</div>', unsafe_allow_html=True)
-                            else:
-                                st.markdown(f'<div style="font-weight: 600; margin-bottom: 8px;">{version_name_db}</div>', unsafe_allow_html=True)
+                            # Container da versão com layout horizontal
+                            version_html = f'''
+                            <div class="version-row">
+                                <div class="version-name" style="color: {version_color};">{version_name_db}</div>
+                                <div class="version-buttons">
+                                    <a href="data:text/markdown;base64,{b64}" download="{filename}" class="version-btn download-btn">📥 Download</a>
+                                </div>
+                            </div>
+                            '''
                             
-                            # Layout horizontal: Download e Editar
-                            col_download, col_edit = st.columns([1, 1])
+                            st.markdown(version_html, unsafe_allow_html=True)
                             
-                            with col_download:
-                                st.markdown(download_link, unsafe_allow_html=True)
-                            
-                            with col_edit:
-                                # Botão de editar
-                                if st.button("Editar", key=f"edit_{version_name_db}", help="Editar esta versão", use_container_width=True):
-                                    # Carregar o conteúdo para edição
-                                    st.session_state.editing_version = version_name_db
-                                    st.session_state.editing_content = current_markdown
-                                    st.rerun()
+                            # Botão de editar separado (precisa ser Streamlit button)
+                            if st.button("✏️ Editar", key=f"edit_{version_name_db}", help="Editar esta versão", use_container_width=True):
+                                # Carregar o conteúdo para edição e redirecionar imediatamente
+                                st.session_state.editing_version = version_name_db
+                                st.session_state.editing_content = current_markdown
+                                st.rerun()
                         else:
                             # Versão sem download (vazia)
-                            if 'version_name' in locals() and version_name and version_name.strip() == version_name_db:
-                                st.markdown(f'<div style="font-weight: 600; margin-bottom: 8px;">{version_name_db} <span style="color: #999;">_Vazia_</span></div>', unsafe_allow_html=True)
-                            else:
-                                st.markdown(f'<div style="font-weight: 600; margin-bottom: 8px;">{version_name_db} <span style="color: #999;">_Vazia_</span></div>', unsafe_allow_html=True)
+                            version_color = "#0066cc" if 'version_name' in locals() and version_name and version_name.strip() == version_name_db else "#333"
+                            
+                            version_html = f'''
+                            <div class="version-row">
+                                <div class="version-name" style="color: {version_color};">{version_name_db} <span style="color: #999;">_Vazia_</span></div>
+                                <div class="version-buttons">
+                                    <span style="color: #999; font-size: 0.75rem;">Sem conteúdo</span>
+                                </div>
+                            </div>
+                            '''
+                            
+                            st.markdown(version_html, unsafe_allow_html=True)
+                            
+                            # Botão de editar para versão vazia
+                            if st.button("✏️ Editar", key=f"edit_empty_{version_name_db}", help="Editar esta versão", use_container_width=True):
+                                # Carregar conteúdo vazio para edição e redirecionar imediatamente
+                                st.session_state.editing_version = version_name_db
+                                st.session_state.editing_content = "# Release Notes\n\nAdicione o conteúdo das release notes aqui..."
+                                st.rerun()
                     except:
-                        # Erro ao carregar
-                        st.markdown(f'<div style="font-weight: 600; margin-bottom: 8px;">{version_name_db} <span style="color: #999;">_..._</span></div>', unsafe_allow_html=True)
+                        # Erro ao carregar - mostrar versão simples com botão de editar
+                        version_html = f'''
+                        <div class="version-row">
+                            <div class="version-name">{version_name_db}</div>
+                            <div class="version-buttons">
+                                <span style="color: #999; font-size: 0.75rem;">Sem conteúdo</span>
+                            </div>
+                        </div>
+                        '''
+                        
+                        st.markdown(version_html, unsafe_allow_html=True)
+                        
+                        # Botão de editar para versão com erro
+                        if st.button("✏️ Editar", key=f"edit_error_{version_name_db}", help="Editar esta versão", use_container_width=True):
+                            # Carregar conteúdo vazio para edição
+                            st.session_state.editing_version = version_name_db
+                            st.session_state.editing_content = "# Release Notes\n\nAdicione o conteúdo das release notes aqui..."
+                            st.rerun()
                     
                     # Pequeno espaço entre versões
                     st.markdown("")
