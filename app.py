@@ -19,8 +19,9 @@ except ImportError:
 # Configuração da página
 st.set_page_config(
     page_title="Gerador de Release Notes",
-    page_icon="�",
-    layout="wide"
+    page_icon="📝",
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 # CSS customizado
