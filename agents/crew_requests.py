@@ -125,14 +125,16 @@ Gere agora a release note seguindo exatamente este formato:"""
             "Content-Type": "application/json"
         }
         
+        # Configuração específica para openai/gpt-oss-20b
         data = {
-            "model": "gemma2-9b-it",
+            "model": "openai/gpt-oss-20b",
             "messages": [
                 {"role": "user", "content": prompt}
             ],
-            "temperature": 0.3,
-            "max_completion_tokens": 1024,
-            "top_p": 0.8
+            "temperature": float(os.getenv("TEMPERATURE", 0.6)),
+            "max_completion_tokens": 8192,
+            "top_p": 1,
+            "reasoning_effort": "medium"
         }
         
         response = requests.post(self.base_url, headers=headers, json=data)
