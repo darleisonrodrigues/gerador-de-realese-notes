@@ -178,7 +178,15 @@ class CollaborativeReleaseNotesDB:
             SELECT task_type, jira_task_id, task_title, generated_content, evidence_image, developer_name
             FROM tasks 
             WHERE version_id = ?
-            ORDER BY task_type DESC, created_at ASC
+            ORDER BY 
+                CASE task_type 
+                    WHEN 'User Story' THEN 1
+                    WHEN 'Bug' THEN 2
+                    WHEN 'Improvement' THEN 3
+                    WHEN 'Technical Debt' THEN 4
+                    ELSE 5
+                END,
+                created_at ASC
         ''', (version_id,))
         
         tasks = cursor.fetchall()
@@ -187,26 +195,43 @@ class CollaborativeReleaseNotesDB:
         if not tasks:
             return "[[_TOC_]]\n\n---\n\n*Nenhuma task adicionada ainda*"
         
-        # Montar markdown colaborativo
+        # Verificar se há conteúdo editado manualmente
+        manual_edit_task = [t for t in tasks if t[0] == 'MANUAL_EDIT']
+        if manual_edit_task:
+            # Se há conteúdo editado manualmente, retornar diretamente
+            return manual_edit_task[0][3]  # generated_content
+        
+        # Caso contrário, montar markdown colaborativo das tasks normais
         markdown = "[[_TOC_]]\n\n---\n\n"
         
-        # Separar por tipo
-        historias = [t for t in tasks if t[0] == 'História']
+        # Separar por tipo usando os novos tipos
+        user_stories = [t for t in tasks if t[0] == 'User Story']
         bugs = [t for t in tasks if t[0] == 'Bug']
+        improvements = [t for t in tasks if t[0] == 'Improvement']
+        technical_debts = [t for t in tasks if t[0] == 'Technical Debt']
         
-        # Adicionar seção História
-        if historias:
-            markdown += "##História\n"
-            for task in historias:
-                markdown += task[3] + "\n\n"  # generated_content
+        # Adicionar seções na ordem especificada
+        if user_stories:
+            markdown += "##User Story\n"
+            for task in user_stories:
+                markdown += f"{task[3]}\n\n"
         
-        # Adicionar seção Bug
         if bugs:
             markdown += "##Bug\n"
             for task in bugs:
-                markdown += task[3] + "\n\n"  # generated_content
+                markdown += f"{task[3]}\n\n"
         
-        return markdown.strip()
+        if improvements:
+            markdown += "##Improvement\n"
+            for task in improvements:
+                markdown += f"{task[3]}\n\n"
+        
+        if technical_debts:
+            markdown += "##Technical Debt\n"
+            for task in technical_debts:
+                markdown += f"{task[3]}\n\n"
+        
+        return markdown.rstrip() + "\n"
     
     def get_version_stats(self, version_name=None):
         """Retorna estatísticas de uma versão específica"""
@@ -216,8 +241,10 @@ class CollaborativeReleaseNotesDB:
                 # Se a versão não existe, retorna stats vazias
                 return {
                     'total': 0,
-                    'historias': 0,
-                    'bugs': 0
+                    'user_stories': 0,
+                    'bugs': 0,
+                    'improvements': 0,
+                    'technical_debts': 0
                 }
         else:
             version_id, _ = self.get_or_create_active_version()
@@ -241,8 +268,10 @@ class CollaborativeReleaseNotesDB:
         
         return {
             'total': total,
-            'historias': stats.get('História', 0),
-            'bugs': stats.get('Bug', 0)
+            'user_stories': stats.get('User Story', 0),
+            'bugs': stats.get('Bug', 0),
+            'improvements': stats.get('Improvement', 0),
+            'technical_debts': stats.get('Technical Debt', 0)
         }
     
     def list_all_versions(self):
@@ -313,17 +342,17 @@ class CollaborativeReleaseNotesDB:
             # Limpar todas as tasks da versão
             cursor.execute("DELETE FROM tasks WHERE version_id = ?", (version_id,))
             
-            # Criar task especial com conteúdo editado
+            # Inserir o conteúdo editado como uma task especial que será reconhecida
             cursor.execute("""
                 INSERT INTO tasks 
                 (version_id, jira_task_id, task_type, task_title, task_description, generated_content, evidence_image)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             """, (
                 version_id,
-                'EDITED_CONTENT',
-                'Edição Manual',
-                'Conteúdo Editado',
-                'Conteúdo editado manualmente',
+                'MANUAL_EDIT',
+                'MANUAL_EDIT',  # Tipo especial para conteúdo editado manualmente
+                'Conteúdo Editado Manualmente',
+                'Conteúdo completo editado pelo usuário',
                 new_content,
                 None
             ))
@@ -334,6 +363,36 @@ class CollaborativeReleaseNotesDB:
         except Exception as e:
             conn.rollback()
             raise Exception(f"Erro ao atualizar versão: {str(e)}")
+        finally:
+            conn.close()
+    
+    def delete_version(self, version_name):
+        """Exclui uma versão e todas as suas tasks"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            # Verificar se a versão existe
+            cursor.execute("SELECT id FROM release_versions WHERE version_name = ?", (version_name,))
+            version_result = cursor.fetchone()
+            
+            if not version_result:
+                raise Exception(f"Versão {version_name} não encontrada")
+            
+            version_id = version_result[0]
+            
+            # Excluir todas as tasks da versão
+            cursor.execute("DELETE FROM tasks WHERE version_id = ?", (version_id,))
+            
+            # Excluir a versão
+            cursor.execute("DELETE FROM release_versions WHERE id = ?", (version_id,))
+            
+            conn.commit()
+            return True
+            
+        except Exception as e:
+            conn.rollback()
+            raise Exception(f"Erro ao excluir versão: {str(e)}")
         finally:
             conn.close()
 

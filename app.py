@@ -104,39 +104,79 @@ st.markdown("""
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 12px;
-        padding: 8px;
-        border-radius: 6px;
-        border: 1px solid #e9ecef;
-        background-color: #f8f9fa;
+        margin-bottom: 8px;
+        padding: 12px;
+        border-radius: 8px;
+        border: 1px solid #e1e5e9;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        transition: all 0.2s ease;
+    }
+    .version-row:hover {
+        border-color: #007bff;
+        box-shadow: 0 4px 8px rgba(0,123,255,0.15);
+        transform: translateY(-1px);
     }
     .version-name {
         font-weight: 600;
         flex-grow: 1;
         margin-right: 8px;
+        font-size: 0.9rem;
     }
     .version-buttons {
         display: flex;
-        gap: 4px;
+        gap: 6px;
+        align-items: center;
     }
     .version-btn {
-        padding: 4px 8px;
+        padding: 6px 10px;
         font-size: 0.75rem;
         border: none;
-        border-radius: 4px;
+        border-radius: 6px;
         cursor: pointer;
         text-decoration: none;
-        display: inline-block;
-        min-width: 60px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        min-width: 70px;
         text-align: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+        font-weight: 500;
     }
     .edit-btn {
-        background-color: #ffc107;
+        background: linear-gradient(135deg, #ffc107 0%, #ffcd39 100%);
         color: #000;
+        border: 1px solid #ffb302;
+    }
+    .edit-btn:hover {
+        background: linear-gradient(135deg, #ffb302 0%, #ffc107 100%);
+        transform: scale(1.05);
     }
     .download-btn {
-        background-color: #28a745;
+        background: linear-gradient(135deg, #28a745 0%, #34ce57 100%);
         color: white;
+        border: 1px solid #1e7e34;
+    }
+    .download-btn:hover {
+        background: linear-gradient(135deg, #1e7e34 0%, #28a745 100%);
+        transform: scale(1.05);
+    }
+    .delete-btn {
+        background: linear-gradient(135deg, #dc3545 0%, #e85565 100%);
+        color: white;
+        border: 1px solid #bd2130;
+        padding: 6px 8px;
+        min-width: 40px;
+    }
+    .delete-btn:hover {
+        background: linear-gradient(135deg, #bd2130 0%, #dc3545 100%);
+        transform: scale(1.05);
+    }
+    .version-status {
+        font-size: 0.7rem;
+        color: #6c757d;
+        font-style: italic;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -185,6 +225,15 @@ def main():
                 help="Edite o conteúdo das release notes diretamente"
             )
             
+            # Mostrar informações sobre o conteúdo
+            if edited_markdown:
+                lines = len(edited_markdown.split('\n'))
+                chars = len(edited_markdown)
+                words = len(edited_markdown.split())
+                st.caption(f"📊 Estatísticas: {lines} linhas • {words} palavras • {chars} caracteres")
+            else:
+                st.warning("⚠️ Atenção: Conteúdo está vazio!")
+            
             # Botões de ação
             col_save, col_preview, col_cancel = st.columns([1, 1, 1])
             
@@ -192,22 +241,20 @@ def main():
                 if st.button("💾 Salvar Alterações", use_container_width=True):
                     try:
                         with st.spinner("Salvando alterações..."):
+                            # Validar se há conteúdo
+                            if not edited_markdown.strip():
+                                st.error("Não é possível salvar conteúdo vazio!")
+                                st.stop()
+                            
                             # Salvar as alterações no banco
                             crew = ReleaseNotesCrewAI()
                             crew.db.update_version_content(st.session_state.editing_version, edited_markdown)
+                            
+                            # Atualizar o session state com o novo conteúdo
+                            st.session_state.editing_content = edited_markdown
                         
                         st.success(f"Versão {st.session_state.editing_version} atualizada com sucesso!")
-                        
-                        # Limpar session state
-                        if 'editing_version' in st.session_state:
-                            del st.session_state.editing_version
-                        if 'editing_content' in st.session_state:
-                            del st.session_state.editing_content
-                        
-                        # Aguardar um pouco antes do rerun
-                        import time
-                        time.sleep(0.5)
-                        st.rerun()
+                        st.info("💡 Dica: Você pode continuar editando ou cancelar para voltar ao menu principal.")
                         
                     except Exception as e:
                         st.error(f"Erro ao salvar: {str(e)}")
@@ -272,11 +319,11 @@ def main():
             # Tipo da task
             tipo_task = st.selectbox(
                 "Tipo da Task:",
-                options=["História", "Bug"],
-                help="História = nova funcionalidade | Bug = correção"
+                options=["User Story", "Bug", "Improvement", "Technical Debt"],
+                help="Selecione o tipo da task conforme classificação do projeto"
             )
         
-        # Segunda linha: ID da task
+        # Segunda linha: ID da task e QA Level
         col3, col4 = st.columns([1, 1])
         
         with col3:
@@ -285,6 +332,14 @@ def main():
                 "ID da Task:",
                 placeholder="Ex: 3048",
                 help="Digite apenas o número (será formatado como JBSV-XXXX)"
+            )
+        
+        with col4:
+            # QA Level
+            qa_level = st.selectbox(
+                "QA Level:",
+                options=[0, 1, 2, 3],
+                help="Selecione o nível de QA da task"
             )
             
             # Formatar o ID automaticamente
@@ -300,11 +355,18 @@ def main():
             # Espaço para futuras funcionalidades ou deixar vazio
             st.empty()
         
-        # Terceira linha: Título e Descrição
+        # Terceira linha: Título e Link TFS
         jira_task_title = st.text_input(
             "Título da Task:",
             placeholder="Ex: Atualizar gráfico de classes ao realizar filtros",
             help="Título descritivo da funcionalidade ou correção"
+        )
+        
+        # Campo para Link TFS
+        tfs_link = st.text_input(
+            "Link da Task:",
+            placeholder="Ex: https://tfs.jbs.com.br/tfs/JBSFDV/VENDA_MAIS_APP/_workitems/edit/9124",
+            help="Link completo do item no TFS - será usado para criar o link clicável no título"
         )
         
         jira_task_description = st.text_area(
@@ -314,24 +376,13 @@ def main():
             help="Descrição técnica detalhada que será usada para gerar a release note"
         )
         
-        # Upload de evidência
-        evidence_image = st.file_uploader(
-            "Upload de Evidência (Opcional):",
-            type=['png', 'jpg', 'jpeg', 'gif'],
-            help="Imagem que demonstra a funcionalidade implementada"
-        )
-        
-        # Mostrar preview da imagem se foi feito upload
-        if evidence_image is not None:
-            st.image(evidence_image, caption="Preview da imagem", width=300)
-        
         # Botões de ação
         col_btn1, col_btn2 = st.columns(2)
         
         with col_btn1:
             generate_preview_button = st.button(
                 "Gerar Preview",
-                disabled=not (jira_task_id and jira_task_title and jira_task_description and version_name.strip()),
+                disabled=not (jira_task_id and jira_task_title and jira_task_description and version_name.strip() and qa_level is not None),
                 help="Gera um preview da descrição que você pode editar antes de adicionar",
                 use_container_width=True
             )
@@ -365,7 +416,8 @@ def main():
                         "jira_task_id": jira_task_id,
                         "jira_task_title": jira_task_title,
                         "jira_task_description": jira_task_description,
-                        "evidence_image": evidence_image.name if evidence_image else None
+                        "qa_level": qa_level,
+                        "tfs_link": tfs_link
                     }
                     
                     # Gerar apenas a descrição simples
@@ -402,12 +454,19 @@ def main():
                 task_data = st.session_state.current_task_data
                 task_id = task_data['jira_task_id']
                 task_title = task_data['jira_task_title']
+                qa_level = task_data['qa_level']
+                tfs_link = task_data.get('tfs_link')
                 
-                image_info = ""
-                if evidence_image:
-                    image_info = f"\\n![{evidence_image.name}](/.attachments/{evidence_image.name} =300x)"
+                # Criar título com ou sem link
+                if tfs_link:
+                    title_formatted = f"###[[{task_id}] {task_title}]({tfs_link})"
+                else:
+                    title_formatted = f"###[{task_id}] {task_title}"
                 
-                preview_markdown = f"###[{task_id}] {task_title}\\n\\n{edited_description.strip()}{image_info}\\n\\n---"
+                # Linha QA Level
+                qa_line = f"\n\n**QA Level: {qa_level}**\n\n"
+                
+                preview_markdown = f"{title_formatted}{qa_line}{edited_description.strip()}\n\n---"
                 
                 # Layout lado a lado: Markdown | Preview
                 col_md, col_preview = st.columns([1, 1])
@@ -423,10 +482,6 @@ def main():
                     st.markdown(f"### [{task_id}] {task_title}")
                     st.markdown(edited_description.strip())
                     
-                    # Mostrar a imagem se existir
-                    if evidence_image:
-                        st.image(evidence_image, caption=evidence_image.name, width=300)
-                    
                     st.markdown("---")
             
             # Armazenar descrição editada
@@ -441,13 +496,17 @@ def main():
                     task_data = st.session_state.current_task_data
                     version_name = st.session_state.current_version
                     
-                    # Preparar informação da imagem
-                    image_info = ""
-                    if evidence_image:
-                        image_info = f"\\n![{evidence_image.name}](/.attachments/{evidence_image.name} =300x)"
+                    # Criar título com ou sem link TFS
+                    if task_data.get('tfs_link'):
+                        title_formatted = f"###[[{task_data['jira_task_id']}] {task_data['jira_task_title']}]({task_data['tfs_link']})"
+                    else:
+                        title_formatted = f"###[{task_data['jira_task_id']}] {task_data['jira_task_title']}"
+                    
+                    # Linha QA Level
+                    qa_line = f"\n\n**QA Level: {task_data['qa_level']}**\n\n"
                     
                     # Criar release note final
-                    final_release_note = f"###[{task_data['jira_task_id']}] {task_data['jira_task_title']}\\n\\n{edited_desc.strip()}{image_info}\\n\\n---"
+                    final_release_note = f"{title_formatted}{qa_line}{edited_desc.strip()}\n\n---"
                     
                     # Adicionar ao banco colaborativo
                     crew = ReleaseNotesCrewAI()
@@ -470,13 +529,15 @@ def main():
                     
                     # Mostrar estatísticas atualizadas da versão
                     stats = crew.get_version_stats(version_name)
-                    col_stat1, col_stat2, col_stat3 = st.columns(3)
+                    col_stat1, col_stat2, col_stat3, col_stat4 = st.columns(4)
                     with col_stat1:
                         st.metric("Total de Tasks", stats['total'])
                     with col_stat2:
-                        st.metric("Histórias", stats['historias'])
+                        st.metric("User Stories", stats['user_stories'])
                     with col_stat3:
                         st.metric("Bugs", stats['bugs'])
+                    with col_stat4:
+                        st.metric("Improvements", stats['improvements'])
                     
                     st.markdown(f"### Release Notes da Versão {version_name}:")
                     st.code(collaborative_markdown, language="markdown")
@@ -529,64 +590,98 @@ def main():
                             # Layout horizontal da versão com botões
                             version_color = "#0066cc" if 'version_name' in locals() and version_name and version_name.strip() == version_name_db else "#333"
                             
-                            # Container da versão com layout horizontal
+                            # Container da versão com layout horizontal melhorado
                             version_html = f'''
                             <div class="version-row">
                                 <div class="version-name" style="color: {version_color};">{version_name_db}</div>
                                 <div class="version-buttons">
-                                    <a href="data:text/markdown;base64,{b64}" download="{filename}" class="version-btn download-btn">📥 Download</a>
+                                    <a href="data:text/markdown;base64,{b64}" download="{filename}" class="version-btn download-btn" title="Baixar Release Notes">
+                                        📥 Download
+                                    </a>
                                 </div>
                             </div>
                             '''
                             
                             st.markdown(version_html, unsafe_allow_html=True)
                             
-                            # Botão de editar separado (precisa ser Streamlit button)
-                            if st.button("✏️ Editar", key=f"edit_{version_name_db}", help="Editar esta versão", use_container_width=True):
-                                # Carregar o conteúdo para edição e redirecionar imediatamente
-                                st.session_state.editing_version = version_name_db
-                                st.session_state.editing_content = current_markdown
-                                st.rerun()
+                            # Botões de ação em colunas
+                            col_edit, col_delete = st.columns([1, 1])
+                            
+                            with col_edit:
+                                if st.button("✏️ Editar", key=f"edit_{version_name_db}", help="Editar esta versão", use_container_width=True):
+                                    st.session_state.editing_version = version_name_db
+                                    st.session_state.editing_content = current_markdown
+                                    st.rerun()
+                            
+                            with col_delete:
+                                if st.button("🗑️ Excluir", key=f"delete_{version_name_db}", help="Excluir esta versão", use_container_width=True, type="secondary"):
+                                    try:
+                                        crew = ReleaseNotesCrewAI()
+                                        crew.db.delete_version(version_name_db)
+                                        st.success(f"Versão {version_name_db} excluída com sucesso!")
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"Erro ao excluir: {str(e)}")
                         else:
                             # Versão sem download (vazia)
                             version_color = "#0066cc" if 'version_name' in locals() and version_name and version_name.strip() == version_name_db else "#333"
                             
                             version_html = f'''
                             <div class="version-row">
-                                <div class="version-name" style="color: {version_color};">{version_name_db} <span style="color: #999;">_Vazia_</span></div>
-                                <div class="version-buttons">
-                                    <span style="color: #999; font-size: 0.75rem;">Sem conteúdo</span>
-                                </div>
+                                <div class="version-name" style="color: {version_color};">{version_name_db}</div>
+                                <div class="version-status">_Vazia_</div>
                             </div>
                             '''
                             
                             st.markdown(version_html, unsafe_allow_html=True)
                             
-                            # Botão de editar para versão vazia
-                            if st.button("✏️ Editar", key=f"edit_empty_{version_name_db}", help="Editar esta versão", use_container_width=True):
-                                # Carregar conteúdo vazio para edição e redirecionar imediatamente
-                                st.session_state.editing_version = version_name_db
-                                st.session_state.editing_content = "# Release Notes\n\nAdicione o conteúdo das release notes aqui..."
-                                st.rerun()
+                            # Botões de ação em colunas
+                            col_edit, col_delete = st.columns([1, 1])
+                            
+                            with col_edit:
+                                if st.button("✏️ Editar", key=f"edit_empty_{version_name_db}", help="Editar esta versão", use_container_width=True):
+                                    st.session_state.editing_version = version_name_db
+                                    st.session_state.editing_content = "# Release Notes\n\nAdicione o conteúdo das release notes aqui..."
+                                    st.rerun()
+                            
+                            with col_delete:
+                                if st.button("🗑️ Excluir", key=f"delete_empty_{version_name_db}", help="Excluir esta versão", use_container_width=True, type="secondary"):
+                                    try:
+                                        crew = ReleaseNotesCrewAI()
+                                        crew.db.delete_version(version_name_db)
+                                        st.success(f"Versão {version_name_db} excluída com sucesso!")
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"Erro ao excluir: {str(e)}")
                     except:
-                        # Erro ao carregar - mostrar versão simples com botão de editar
+                        # Erro ao carregar - mostrar versão simples com botões de ação
                         version_html = f'''
                         <div class="version-row">
                             <div class="version-name">{version_name_db}</div>
-                            <div class="version-buttons">
-                                <span style="color: #999; font-size: 0.75rem;">Sem conteúdo</span>
-                            </div>
+                            <div class="version-status">_Erro ao carregar_</div>
                         </div>
                         '''
                         
                         st.markdown(version_html, unsafe_allow_html=True)
                         
-                        # Botão de editar para versão com erro
-                        if st.button("✏️ Editar", key=f"edit_error_{version_name_db}", help="Editar esta versão", use_container_width=True):
-                            # Carregar conteúdo vazio para edição
-                            st.session_state.editing_version = version_name_db
-                            st.session_state.editing_content = "# Release Notes\n\nAdicione o conteúdo das release notes aqui..."
-                            st.rerun()
+                        # Botões de ação em colunas
+                        col_edit, col_delete = st.columns([1, 1])
+                        
+                        with col_edit:
+                            if st.button("✏️ Editar", key=f"edit_error_{version_name_db}", help="Editar esta versão", use_container_width=True):
+                                st.session_state.editing_version = version_name_db
+                                st.session_state.editing_content = "# Release Notes\n\nAdicione o conteúdo das release notes aqui..."
+                                st.rerun()
+                        
+                        with col_delete:
+                            if st.button("🗑️ Excluir", key=f"delete_error_{version_name_db}", help="Excluir esta versão", use_container_width=True, type="secondary"):
+                                try:
+                                    crew = ReleaseNotesCrewAI()
+                                    crew.db.delete_version(version_name_db)
+                                    st.success(f"Versão {version_name_db} excluída com sucesso!")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Erro ao excluir: {str(e)}")
                     
                     # Pequeno espaço entre versões
                     st.markdown("")

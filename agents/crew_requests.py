@@ -21,12 +21,14 @@ Descrição: {task_data['jira_task_description']}
 
 INSTRUÇÕES:
 1. Não use tags <think> ou qualquer marcação de raciocínio
-2. Para História: Explique o que foi implementado, como funciona e qual o benefício
+2. Para User Story: Explique o que foi implementado, como funciona e qual o benefício
 3. Para Bug: Explique qual era o problema e como foi resolvido
-4. Use linguagem clara e profissional (2-5 frases)
-5. Retorne APENAS o texto descritivo, sem título ou formatação
+4. Para Improvement: Explique a melhoria implementada e o impacto
+5. Para Technical Debt: Explique a correção técnica e os benefícios
+6. Use linguagem clara e profissional (2-5 frases)
+7. Retorne APENAS o texto descritivo, sem título ou formatação
 
-EXEMPLO História:
+EXEMPLO User Story:
 "Adicionamos um informativo mostrando o motivo do status de 'bloqueado' e status 'em observação'. Essa bottomsheet é mostrada ao clicar no status dos pontos de venda, na tela de Minuto de ouro e nas listagens de Rotas e Carteira."
 
 EXEMPLO Bug:
